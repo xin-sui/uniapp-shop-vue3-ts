@@ -28,15 +28,14 @@ export const useMemberStore = defineStore(
   // TODO: 持久化
   {
     persist: {
-    storage:{
-
-    getItem(key) {
-   return uni.getStorageSync(key)
-    },
-    setItem(key,value) {
-    uni.setStorageSync(key,value)
-    }
-    }
+      storage: {
+        getItem(key) {
+          return uni.getStorageSync(key)
+        },
+        setItem(key, value) {
+          uni.setStorageSync(key, value)
+        },
+      },
     },
   },
 )
