@@ -1,4 +1,5 @@
 import { useMemberStore } from '@/stores'
+
 /**
  *添加拦截器
  * 拦截request请求
@@ -38,3 +39,55 @@ const httpInterceptor = {
 uni.addInterceptor('request', httpInterceptor)
 
 uni.addInterceptor('uploadfile', httpInterceptor)
+
+/**
+ * 请求函数
+ * @param UniApp.RequestOptions
+ * @returns Promise
+ *  1.返回promise对象
+ * 2.请求成功
+ *  2.1 提取核心数据res.data
+ *  2.2 添加类型，支持泛型
+ * 3.请求失败
+ *  3.1 网络错误-提示用户换网络
+ *  3.2 401错误-清理用户信息，跳转登录
+ *  3.3 其他错误 -根据后端返回信息轻提示
+ */
+interface Data<T> {
+  code: string
+  msg: string
+  result: T
+}
+export const http = <T>(options: UniApp.RequestOptions) => {
+  return new Promise<Data<T>>((resolve, rejects) => {
+    uni.request({
+      ...options,
+      // 2.请求成功
+      success(res) {
+        //状态码2xx
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          resolve(res.data as Data<T>)
+        } else if (res.statusCode === 401) {
+          //401 -清理用户信息 跳转登录页
+          const memberStore = useMemberStore()
+          memberStore.clearProfile()
+          uni.navigateTo({ url: '/pages/login/login' })
+          rejects()
+        } else {
+          //其他错误
+          uni.showToast({
+            icon: 'none',
+            title: (res.data as Data<T>).msg || '请求错误',
+          })
+        }
+      },
+      fail(err) {
+        uni.showToast({
+          icon: 'none',
+          title: '网络错误，请稍后尝试',
+        })
+        rejects(err)
+      },
+    })
+  })
+}
