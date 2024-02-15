@@ -41,13 +41,33 @@ const onScrolltolower = () => {
   // 调用子组件暴露的方法
   guessRef.value?.getMore()
 }
+//自定义下拉刷新被触发
+const isTriggered = ref(false)
+const onrefresherrefresh = async () => {
+  //开启动画
+  isTriggered.value = true
+  // await getHomeBannerData()
+  // await getHomeCategoryData()
+  // await getHomeHotPanelData()
+  //等待所有接口调用完毕
+  await Promise.all([getHomeBannerData(), getHomeCategoryData(), getHomeHotPanelData()])
+  //关闭动画
+  isTriggered.value = false
+}
 </script>
 
 <template>
   <!-- 自定义状态栏 -->
   <CustomNavbar />
   <!-- 滚动容器 -->
-  <scroll-view @scrolltolower="onScrolltolower" class="scroll-view" scroll-y>
+  <scroll-view
+    @refresherrefresh="onrefresherrefresh"
+    @scrolltolower="onScrolltolower"
+    :refresher-triggered="isTriggered"
+    refresher-enabled
+    class="scroll-view"
+    scroll-y
+  >
     <!-- //自定义轮播图 -->
     <XtxSwiper :list="bannerList" />
     <!-- 前台分类 -->
