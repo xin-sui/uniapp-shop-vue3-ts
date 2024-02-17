@@ -4,10 +4,10 @@ import { onMounted, ref } from 'vue'
 import type { GuessItem } from '@/types/home'
 import type { PageParams } from '@/types/global'
 //分页参数
-// 使用 TypeScript 內置的 Required 工具類型
+// 使用 TypeScript 內置的 Required 工具類型 改为必传
 type RequiredPageParams = Required<PageParams>
 const pageParams: RequiredPageParams = {
-  page: 34,
+  page: 1,
   pageSize: 10,
 }
 //猜你喜欢
@@ -33,6 +33,12 @@ const getHomeGoodsGuessLikeData = async () => {
     isFinish.value = true
   }
 }
+//重置数据
+const resetData = () => {
+  pageParams.page = 1
+  guessList.value = []
+  isFinish.value = false
+}
 //组件挂载完毕
 onMounted(() => {
   getHomeGoodsGuessLikeData()
@@ -40,6 +46,7 @@ onMounted(() => {
 //暴露方法给父页面调用
 defineExpose({
   getMore: getHomeGoodsGuessLikeData,
+  resetData: resetData,
 })
 </script>
 
