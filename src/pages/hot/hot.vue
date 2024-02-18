@@ -22,10 +22,13 @@ uni.setNavigationBarTitle({ title: currUrlMap!.title })
 
 //推荐封面图
 const bannerPicture = ref('')
+
 //子选项
 const subTypes = ref<SubTypeItem[]>([])
+
 // 高亮的下标
 const activeIndex = ref(0)
+
 //获取热门推荐数据
 const getHotRecommendData = async () => {
   const res = await getHotRecommendAPI(currUrlMap!.url)
@@ -40,9 +43,22 @@ onLoad(() => {
 })
 
 //滚到底部触发
-const onScrolltolower = () => {
+const onScrolltolower = async () => {
   //获取当前选项
-  subTypes.value[activeIndex.value]
+  const currSubTypes = subTypes.value[activeIndex.value]
+  console.log(currSubTypes)
+  //当前页面累计
+  currSubTypes.goodsItems.page++
+  //调用api传参
+  const res = await getHotRecommendAPI(currUrlMap!.url, {
+    subType: currSubTypes.id,
+    page: currSubTypes.goodsItems.page,
+    pageSize: currSubTypes.goodsItems.pageSize,
+  })
+  //新列表
+  const newsubTypes = res.result.subTypes[activeIndex.value]
+  //追加到旧列表
+  currSubTypes.goodsItems.items.push(...newsubTypes.goodsItems.items)
 }
 </script>
 
