@@ -8,6 +8,7 @@ import CategoryPanel from './components/CategoryPanel.vue'
 import HotPanel from './components/HotPanel.vue'
 import PageSkeleton from './components/PageSkeleton.vue'
 import type { XtxGuessInstance } from '@/components/components'
+import { useGuessList } from '@/composables'
 
 //轮播图数据
 const bannerList = ref<BannerItem[]>([])
@@ -42,11 +43,7 @@ onLoad(async () => {
 
 // 滚动触发
 // 获取猜你循环组件实例
-const guessRef = ref<XtxGuessInstance>()
-const onScrolltolower = () => {
-  // 调用子组件暴露的方法
-  guessRef.value?.getMore()
-}
+const { guessRef, onScrolltolower } = useGuessList()
 //自定义下拉刷新被触发
 const isTriggered = ref(false)
 const onrefresherrefresh = async () => {

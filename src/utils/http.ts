@@ -16,6 +16,8 @@ const baseURL = 'https://pcapi-xiaotuxian-front-devtest.itheima.net'
 const httpInterceptor = {
   //拦截器触发
   invoke(options: UniApp.RequestOptions) {
+    console.log(options.url)
+
     //1.非http开头需拼接地址
     if (!options.url.startsWith('http')) {
       options.url = baseURL + options.url
