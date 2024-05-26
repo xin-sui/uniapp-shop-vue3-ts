@@ -5,6 +5,15 @@ import { onLoad } from '@dcloudio/uni-app'
 import { ref } from 'vue'
 import AddressPanel from './components/AddressPanel.vue'
 import ServicePanel from './components/ServicePanel.vue'
+import type {
+  SkuPopupEvent,
+  SkuPopupInstance,
+  SkuPopupLocaldata,
+  SkuPopupSpecItem,
+} from '@/components/vk-data-goods-sku-popup/vk-data-goods-sku-popup'
+import { computed } from 'vue'
+import { postMemberAddressAPI } from '@/services/address'
+import { postMemberCartAPI } from '@/services/Cart'
 // 获取屏幕边界到安全区域距离
 const { safeAreaInsets } = uni.getSystemInfoSync()
 console.log(safeAreaInsets)
@@ -18,6 +27,29 @@ const goodsLis = ref<GoodsResult>()
 const getGoodsByIdData = async () => {
   const res = await getGoodsByIdAPI(query.id)
   goodsLis.value = res.result
+  //sku组件所需格式
+  localdata.value = {
+    _id: res.result.id,
+    name: res.result.name,
+    goods_thumb: res.result.mainPictures[0],
+    spec_list: res.result.specs.map((v) => {
+      return {
+        name: v.name,
+        list: v.values,
+      }
+    }),
+    sku_list: res.result.skus.map((v) => {
+      return {
+        _id: v.id,
+        goods_id: res.result.id,
+        goods_name: res.result.name,
+        image: v.picture,
+        price: v.price * 100,
+        stock: v.inventory,
+        sku_name_arr: v.specs.map((vv) => vv.valueName),
+      }
+    }),
+  }
 }
 //轮播图变化时
 //当前位置
@@ -25,6 +57,7 @@ const currenIndex = ref(0)
 const onChange: UniHelper.SwiperOnChange = (e) => {
   currenIndex.value = e.detail.current
 }
+
 //点击图片时
 const onTapImag = (item: string) => {
   // 大图预览
@@ -51,10 +84,56 @@ const openPopu = (name: typeof popupName.value) => {
 onLoad(async () => {
   await Promise.all([getGoodsByIdData()])
 })
-console.log(query.id)
+
+//是否显示sku组件
+const isShowSku = ref(false)
+//商品信息
+const localdata = ref({} as SkuPopupLocaldata)
+//按钮显示  1:都显示 2:只显示购物车 3:只显示立即购买
+enum SkuMode {
+  Both = 1,
+  Cart = 2,
+  Buy = 3,
+}
+//控制按钮显示
+const modeButton = ref<SkuMode>(SkuMode.Both)
+const onModeButton = (e: number) => {
+  modeButton.value = e
+  isShowSku.value = true
+}
+//sku组件实例
+const skuPopupRef = ref<SkuPopupInstance>()
+//通过组件实例调用组件中的方法
+const selectArrText = computed(() => {
+  console.log(skuPopupRef.value?.selectArr)
+
+  return skuPopupRef.value?.selectArr?.join(' ') || '请选择商品规格'
+})
+//加入购物车事件
+const onAddCart = async (ev: SkuPopupEvent) => {
+  const res = await postMemberCartAPI({ skuId: ev._id, count: ev.buy_num })
+  uni.showToast({
+    title: '添加成功',
+  })
+  isShowSku.value = false
+}
 </script>
 
 <template>
+  <!-- sku弹窗组件 -->
+  <vk-data-goods-sku-popup
+    add-cart-background-color="#FFa868"
+    buy-now-background-color="#27BA9B"
+    :mode="modeButton"
+    v-model="isShowSku"
+    :localdata="localdata"
+    :actived-style="{
+      color: '#27BA9B',
+      borderColor: '#27BA9B',
+      backgroundColor: '#E9F8F5',
+    }"
+    @add-cart="onAddCart"
+  />
   <scroll-view scroll-y class="viewport">
     <!-- 基本信息 -->
     <view class="goods">
@@ -84,9 +163,9 @@ console.log(query.id)
 
       <!-- 操作面板 -->
       <view class="action">
-        <view class="item arrow">
+        <view @tap="onModeButton(SkuMode.Both)" class="item arrow">
           <text class="label">选择</text>
-          <text class="text ellipsis"> 请选择商品规格 </text>
+          <text class="text ellipsis"> {{ selectArrText }} </text>
         </view>
         <view class="item arrow" @tap="openPopu('address')">
           <text class="label">送至</text>
@@ -168,8 +247,8 @@ console.log(query.id)
       </navigator>
     </view>
     <view class="buttons">
-      <view class="addcart"> 加入购物车 </view>
-      <view class="buynow"> 立即购买 </view>
+      <view class="addcart" @tap="onModeButton(SkuMode.Cart)"> 加入购物车 </view>
+      <view class="buynow" @tap="onModeButton(SkuMode.Buy)"> 立即购买 </view>
     </view>
   </view>
   <!-- uni-ui弹出层 -->
@@ -194,6 +273,7 @@ page {
 .panel {
   margin-top: 20rpx;
   background-color: #fff;
+
   .title {
     display: flex;
     justify-content: space-between;
@@ -202,6 +282,7 @@ page {
     line-height: 1;
     padding: 30rpx 60rpx 30rpx 6rpx;
     position: relative;
+
     text {
       padding-left: 10rpx;
       font-size: 28rpx;
@@ -209,6 +290,7 @@ page {
       font-weight: 600;
       border-left: 4rpx solid #27ba9b;
     }
+
     navigator {
       font-size: 24rpx;
       color: #666;
@@ -232,13 +314,16 @@ page {
 /* 商品信息 */
 .goods {
   background-color: #fff;
+
   .preview {
     height: 750rpx;
     position: relative;
+
     .image {
       width: 750rpx;
       height: 750rpx;
     }
+
     .indicator {
       height: 40rpx;
       padding: 0 24rpx;
@@ -250,21 +335,26 @@ page {
       position: absolute;
       bottom: 30rpx;
       right: 30rpx;
+
       .current {
         font-size: 26rpx;
       }
+
       .split {
         font-size: 24rpx;
         margin: 0 1rpx 0 2rpx;
       }
+
       .total {
         font-size: 24rpx;
       }
     }
   }
+
   .meta {
     position: relative;
     border-bottom: 1rpx solid #eaeaea;
+
     .price {
       height: 130rpx;
       padding: 25rpx 30rpx 0;
@@ -273,9 +363,11 @@ page {
       box-sizing: border-box;
       background-color: #35c8a9;
     }
+
     .number {
       font-size: 56rpx;
     }
+
     .brand {
       width: 160rpx;
       height: 80rpx;
@@ -284,6 +376,7 @@ page {
       top: 26rpx;
       right: 30rpx;
     }
+
     .name {
       max-height: 88rpx;
       line-height: 1.4;
@@ -291,6 +384,7 @@ page {
       font-size: 32rpx;
       color: #333;
     }
+
     .desc {
       line-height: 1;
       padding: 0 20rpx 30rpx;
@@ -298,8 +392,10 @@ page {
       color: #cf4444;
     }
   }
+
   .action {
     padding-left: 20rpx;
+
     .item {
       height: 90rpx;
       padding-right: 60rpx;
@@ -309,15 +405,18 @@ page {
       position: relative;
       display: flex;
       align-items: center;
+
       &:last-child {
         border-bottom: 0 none;
       }
     }
+
     .label {
       width: 60rpx;
       color: #898b94;
       margin: 0 16rpx 0 10rpx;
     }
+
     .text {
       flex: 1;
       -webkit-line-clamp: 1;
@@ -328,15 +427,19 @@ page {
 /* 商品详情 */
 .detail {
   padding-left: 20rpx;
+
   .content {
     margin-left: -20rpx;
+
     .image {
       width: 100%;
     }
   }
+
   .properties {
     padding: 0 20rpx;
     margin-bottom: 30rpx;
+
     .item {
       display: flex;
       line-height: 2;
@@ -345,9 +448,11 @@ page {
       color: #333;
       border-bottom: 1rpx dashed #ccc;
     }
+
     .label {
       width: 200rpx;
     }
+
     .value {
       flex: 1;
     }
@@ -361,6 +466,7 @@ page {
     background-color: #f4f4f4;
     display: flex;
     flex-wrap: wrap;
+
     .goods {
       width: 340rpx;
       padding: 24rpx 20rpx 20rpx;
@@ -368,26 +474,31 @@ page {
       border-radius: 10rpx;
       background-color: #fff;
     }
+
     .image {
       width: 300rpx;
       height: 260rpx;
     }
+
     .name {
       height: 80rpx;
       margin: 10rpx 0;
       font-size: 26rpx;
       color: #262626;
     }
+
     .price {
       line-height: 1;
       font-size: 20rpx;
       color: #cf4444;
     }
+
     .number {
       font-size: 26rpx;
       margin-left: 2rpx;
     }
   }
+
   navigator {
     &:nth-child(even) {
       margin-right: 0;
@@ -410,8 +521,10 @@ page {
   justify-content: space-between;
   align-items: center;
   box-sizing: content-box;
+
   .buttons {
     display: flex;
+
     & > view {
       width: 220rpx;
       text-align: center;
@@ -420,20 +533,24 @@ page {
       color: #fff;
       border-radius: 72rpx;
     }
+
     .addcart {
       background-color: #ffa868;
     }
+
     .buynow,
     .payment {
       background-color: #27ba9b;
       margin-left: 20rpx;
     }
   }
+
   .icons {
     padding-right: 10rpx;
     display: flex;
     align-items: center;
     flex: 1;
+
     .icons-button {
       flex: 1;
       text-align: center;
@@ -444,10 +561,12 @@ page {
       font-size: 20rpx;
       color: #333;
       background-color: #fff;
+
       &::after {
         border: none;
       }
     }
+
     text {
       display: block;
       font-size: 34rpx;
@@ -455,3 +574,4 @@ page {
   }
 }
 </style>
+@/services/cart
